@@ -1,20 +1,24 @@
+import json
+
 LOW = "1"
 MEDIUM = "2"
 HIGH = "3"
-STATUS = {
+PRIORITY = {
     LOW: "Low",
     MEDIUM: "Medium",
     HIGH: "High"
 }
+PRIORITY_ORDER = {PRIORITY[LOW]: 0, PRIORITY[MEDIUM]: 1, PRIORITY[HIGH]: 2}
 
 OPEN = "1"
 IN_PROGRESS = "2"
 CLOSED = "3"
-PRIORITY = {
+STATUS = {
     OPEN: "Open",
     IN_PROGRESS: "In Progress",
     CLOSED: "Closed"
 }
+STATUS_ORDER = {STATUS[OPEN]: 0, STATUS[IN_PROGRESS]: 1, STATUS[CLOSED]: 2}
 
 READ_GENERAL = "1"
 READ_STATUS = "2"
@@ -66,6 +70,34 @@ def get_task(name: str, description: str, priority: str, status: str) -> dict[st
     return {'name': name, 'description': description, 'priority': priority, 'status': status}
 
 
+def validate_and_get_task_info(line: str) -> tuple[int, dict[str, str]] | None:
+    """
+    Function to validate and get task from input.
+    Skip line if line is not valid.
+    :param line: row line from file
+    :return: id and tuple with values
+    """
+    try:
+        raw_id, other_data = line.strip().split(" — ")
+    except ValueError:
+        print("Skip the line. Incorrect format."
+              "Should be like 'Incorrect line format, should be like 'ID {task_id} — {task['name']} | {task['description']} | Priority: {task['priority']} | Status: {task['status']}'")
+        return None
+    try:
+        task_id = int(raw_id.split(' ')[1])
+    except ValueError:
+        print("Skip the line. Id is not an integer.")
+        return None
+    try:
+        name, description, raw_priority, raw_status = other_data.strip().split("|")
+        priority = raw_priority.strip().split(":")[1].strip()
+        status = raw_status.strip().split(":")[1].strip()
+    except ValueError:
+        print("Skip the line. Cannot parse data.")
+        return None
+    return task_id, get_task(name, description, priority, status)
+
+
 def print_menu(menu: dict[str, str]) -> None:
     """
     Pretty print menu options
@@ -110,8 +142,18 @@ def input_task() -> dict[str, str]:
     Function to get task from user input
     :return: dict with task
     """
-    name = input("Enter task name: ")
-    description = input("Enter task description: ")
+    while True:
+        name = input("Enter task name: ")
+        if name:
+            break
+        else:
+            print(f"Name cannot be empty")
+    while True:
+        description = input("Enter task description: ")
+        if description:
+            break
+        else:
+            print(f"Description cannot be empty")
     priority = input_process(PRIORITY)
     status = input_process(STATUS)
     return get_task(name, description, PRIORITY[priority], STATUS[status])
@@ -133,7 +175,7 @@ def task_to_string(task: dict[str, str], task_id: int) -> str:
     :param task_id: id of the task (int)
     :return: pretty string
     """
-    return f"{task_id}: {', '.join([str(v) for k, v in task.items()])}"
+    return f"ID {task_id} — {task['name']} | {task['description']} | Priority: {task['priority']} | Status: {task['status']}"
 
 
 def tasks_to_file(tasks: dict[int, dict[str, str]]) -> None:
@@ -196,11 +238,12 @@ def ordering_tasks(tasks: dict[int, dict[str, str]], ordering: str) -> dict[int,
     :return: tasks ordered by priority or status or raise ValueError if ordering is not valid
     """
     if ordering == 'priority':
-        return dict(sorted(tasks.items(), key=lambda x: list(PRIORITY.values()).index(x[1].get(ordering, ''))))
+        ordering_const = PRIORITY_ORDER
     elif ordering == 'status':
-        return dict(sorted(tasks.items(), key=lambda x: list(STATUS.values()).index(x[1].get(ordering, ''))))
+        ordering_const = STATUS_ORDER
     else:
         raise ValueError
+    return dict(sorted(tasks.items(), key=lambda x: ordering_const[x[1][ordering]]))
 
 
 def get_tasks_as_strings(tasks: dict[int, dict[str, str]]) -> list[str]:
@@ -222,8 +265,11 @@ def from_file_to_tasks() -> dict[int, dict[str, str]]:
         with open(FILE_NAME, 'r') as file:
             lines = file.readlines()
             for line in lines:
-                task_id, task_info = line.strip().split(': ')
-                tasks[int(task_id)] = get_task(*task_info.split(', '))
+                try:
+                    task_id, task_info = validate_and_get_task_info(line)
+                    tasks[task_id] = task_info
+                except ValueError:
+                    print(f'Validation was failed')
     except FileNotFoundError:
         print('File not found and will be created')
     finally:
@@ -261,6 +307,7 @@ def get_task_id(tasks: dict[int, dict[str, str]]) -> int:
     """
     while True:
         try:
+            print(f"Available tasks: {[task_id for task_id in tasks.keys()]}")
             task_id = int(input("Please type task id: "))
         except ValueError:
             print(f"value should be a number")
@@ -286,8 +333,14 @@ def update_task_by_field(field: str, task_id: int, tasks: dict[int, dict[str, st
     elif field == 'priority':
         value = PRIORITY[input_process(PRIORITY)]
     else:
-        value = input("Input value:")
+        while True:
+            value = input("Input value:")
+            if value:
+               break
+            else:
+                print(f"Value shouldn't be empty")
     tasks[task_id][field] = value
+    tasks_to_file(tasks)
     print(f'Task {task_id} updated {field}: {value}')
 
 

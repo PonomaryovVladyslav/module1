@@ -1,2 +1,2 @@
-1: New task, Some desc, Open, High
-2: Another task, Bla bla bla, In Progress, Low
+ID 1 — Test task | Some sescription | Priority: Low | Status: Closed
+ID 3 — Another task | Bla bla  | Priority: High | Status: In Progress
