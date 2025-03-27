@@ -1,5 +1,3 @@
-import json
-
 LOW = "1"
 MEDIUM = "2"
 HIGH = "3"
@@ -336,7 +334,7 @@ def update_task_by_field(field: str, task_id: int, tasks: dict[int, dict[str, st
         while True:
             value = input("Input value:")
             if value:
-               break
+                break
             else:
                 print(f"Value shouldn't be empty")
     tasks[task_id][field] = value
